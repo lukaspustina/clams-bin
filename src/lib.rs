@@ -41,7 +41,7 @@ pub mod mv_videos {
             .collect::<Vec<_>>()
             .join(" -or ");
 
-        Ok(format!("find {} -type f -size +{} {}", srcs, min_size, exts))
+        Ok(format!("find {} -type f -size +{} -and \\( {} \\)", srcs, min_size, exts))
     }
 
     pub fn check_size_arg(size: &str) -> Result<(), MvVideosError> {
@@ -108,7 +108,7 @@ pub mod mv_videos {
                 let res = build_find_cmd(&["one", "two"], "100M", &["avi", "mkv", "mp4"]);
                 assert_that(&res)
                     .is_ok()
-                    .is_equal_to(r#"find "one" "two" -type f -size +100M -name "*.avi" -or -name "*.mkv" -or -name "*.mp4""#.to_string());
+                    .is_equal_to(r#"find "one" "two" -type f -size +100M -and \( -name "*.avi" -or -name "*.mkv" -or -name "*.mp4" \)"#.to_string());
             }
         }
 

@@ -41,12 +41,22 @@ struct Args {
     /// Only show what would be done
     #[structopt(short = "d", long = "dry")]
     dry: bool,
+    /// do not use colored output
+    #[structopt(long = "no-color")]
+    no_color: bool,
     /// Verbose mode (-v, -vv, -vvv, etc.)
     #[structopt(short = "v", long = "verbose", parse(from_occurrences))]
     verbosity: u64,
 }
 
 fn run(args: Args) -> Result<(), Error> {
+    if args.no_color {
+        colored::control::set_override(false);
+    }
+    if args.dry {
+        println!("{}", "Running in dry mode. No moves will be performed.".blue());
+    }
+
     let _ = mv_videos::check_size_arg(&args.size)?;
     if !PathBuf::from(&args.destination).is_dir() {
         return Err(format_err!("Destination directory '{}' does not exist.", args.destination));
@@ -93,7 +103,14 @@ fn run(args: Args) -> Result<(), Error> {
     for (from, to) in moves {
         // Safe unwrap because we already checked the paths.
         print!("Moving {} to {} ...", from.to_str().unwrap().yellow(), to.to_str().unwrap().yellow());
-        println!(" {}.", "done".green());
+        if args.dry {
+            println!(" {}.", "simulated".blue());
+        } else {
+            match std::fs::rename(from, to) {
+                Ok(_) => println!(" {}.", "done".green()),
+                Err(e) => eprintln!(" {}", e)
+            }
+        }
     }
 
     Ok(())
@@ -105,7 +122,7 @@ fn main() {
     let log_level = logging::int_to_log_level(args.verbosity);
     logging::init_logging("mv_videos", log_level, log::LevelFilter::Warn).expect("Failed to initialize logging");
 
-    println!("{} {}, log level={}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"), log_level);
+    println!("mv_videos {}, log level={}", env!("CARGO_PKG_VERSION"), log_level);
     debug!("args = {:#?}", args);
 
     match run(args) {

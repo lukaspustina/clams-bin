@@ -1,4 +1,4 @@
-all: check build test
+all: check build test use_case_tests
 
 todos:
 	rg -g '!Makefile' -i todo 
@@ -11,6 +11,9 @@ build:
 
 test:
 	cargo test
+
+use_case_tests: use_cases
+	make -C $<
 
 docs:
 	

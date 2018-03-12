@@ -1,0 +1,4 @@
+Moving tests/data/movie_1.avi to /tmp/movie_1.avi ... simulated.
+Moving tests/data/movie_2.mp4 to /tmp/movie_2.mp4 ... simulated.
+Moving tests/data/movie_3.mkv to /tmp/movie_3.mkv ... simulated.
+Running in dry mode. No moves will be performed.
