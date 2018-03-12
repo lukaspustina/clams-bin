@@ -1,0 +1,36 @@
+[package]
+name = "clams-bin"
+version = "0.0.1"
+authors = ["Lukas Pustina <lukas@pustina.net>"]
+description = "Shell CLIs build with help from clams"
+readme = "README.md"
+license = "MIT"
+keywords = ["shell", "cli"]
+include = [
+  "README.md",
+  "LICENSE",
+  "**/*.rs",
+  "Cargo.toml",
+]
+
+[badges]
+travis-ci = { repository = "lukaspustina/clams-bin", branch = "master" }
+codecov = { repository = "lukaspustina/clams-bin", branch = "master", service = "github" }
+
+[[bin]]
+name = "mv_videos"
+path = "src/bin/mv_videos.rs"
+
+[dependencies]
+clams = "*"
+colored = "^1.6"
+error-chain = "^0.11"
+failure = "^0.1"
+failure_derive = "^0.1"
+log = "^0.4"
+fern = { version = "^0.5", features = ["colored"] }
+structopt = "^0.2"
+subprocess = "^0.1"
+
+[dev-dependencies]
+spectral = "^0.6"
