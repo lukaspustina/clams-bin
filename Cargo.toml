@@ -22,7 +22,7 @@ name = "mv_videos"
 path = "src/bin/mv_videos.rs"
 
 [dependencies]
-clams = "*"
+clams = "0.0.2"
 colored = "^1.6"
 error-chain = "^0.11"
 failure = "^0.1"
