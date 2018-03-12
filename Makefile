@@ -13,7 +13,8 @@ test:
 	cargo test
 
 use_case_tests: use_cases
-	make -C $<
+	@echo Running Use Case Tests
+	@make -C $<
 
 docs:
 	
