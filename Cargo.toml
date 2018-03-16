@@ -18,8 +18,8 @@ travis-ci = { repository = "lukaspustina/clams-bin", branch = "master" }
 codecov = { repository = "lukaspustina/clams-bin", branch = "master", service = "github" }
 
 [[bin]]
-name = "mv_videos"
-path = "src/bin/mv_videos.rs"
+name = "mv_files"
+path = "src/bin/mv_files.rs"
 
 [dependencies]
 clams = "0.0.2"

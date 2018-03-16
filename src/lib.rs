@@ -9,7 +9,7 @@ extern crate log;
 #[cfg(test)]
 extern crate spectral;
 
-pub mod mv_videos {
+pub mod mv_files {
     use std::path::{Path, PathBuf};
 
     #[derive(Debug, Fail)]

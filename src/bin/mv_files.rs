@@ -14,7 +14,7 @@ extern crate structopt;
 extern crate subprocess;
 
 use clams::{fs, logging};
-use clams_bin::mv_videos;
+use clams_bin::mv_files;
 use colored::Colorize;
 use failure::{Error, ResultExt};
 use indicatif::{ProgressBar, ProgressStyle};
@@ -23,7 +23,7 @@ use structopt::StructOpt;
 use subprocess::{Exec, Redirection};
 
 #[derive(StructOpt, Debug)]
-#[structopt(name = "mv_videos",
+#[structopt(name = "mv_files",
 about = "Move video files from a nested directory structure into another, flat directory",
 raw(setting = "structopt::clap::AppSettings::ColoredHelp")
 )]
@@ -62,7 +62,7 @@ fn run(args: Args) -> Result<(), Error> {
         println!("{}", "Running in dry mode. No moves will be performed.".blue());
     }
 
-    let _ = mv_videos::check_size_arg(&args.size)?;
+    let _ = mv_files::check_size_arg(&args.size)?;
     if !PathBuf::from(&args.destination).is_dir() {
         return Err(format_err!("Destination directory '{}' does not exist.", args.destination));
     }
@@ -70,9 +70,9 @@ fn run(args: Args) -> Result<(), Error> {
         .iter()
         .map(|s| s.as_ref())
         .collect();
-    let extensions = mv_videos::parse_extensions(&args.extensions)?;
+    let extensions = mv_files::parse_extensions(&args.extensions)?;
 
-    let find = mv_videos::build_find_cmd(&source_directories, &args.size, extensions.as_slice())?;
+    let find = mv_files::build_find_cmd(&source_directories, &args.size, extensions.as_slice())?;
     debug!("find = {}", find);
 
     let res = Exec::shell(&find)
@@ -100,7 +100,7 @@ fn run(args: Args) -> Result<(), Error> {
     let moves: Vec<(_,_)> = files
         .into_iter()
         .map(|f| {
-            let dest_path = mv_videos::destination_path(&args.destination, &f).unwrap();
+            let dest_path = mv_files::destination_path(&args.destination, &f).unwrap();
             (f, dest_path)
         })
         .collect();
@@ -158,9 +158,9 @@ fn main() {
     let args = Args::from_args();
 
     let log_level = logging::int_to_log_level(args.verbosity);
-    logging::init_logging("mv_videos", log_level, log::LevelFilter::Warn).expect("Failed to initialize logging");
+    logging::init_logging("mv_files", log_level, log::LevelFilter::Warn).expect("Failed to initialize logging");
 
-    println!("mv_videos {}, log level={}", env!("CARGO_PKG_VERSION"), log_level);
+    println!("mv_files {}, log level={}", env!("CARGO_PKG_VERSION"), log_level);
     debug!("args = {:#?}", args);
 
     match run(args) {
