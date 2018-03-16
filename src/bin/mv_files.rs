@@ -3,29 +3,27 @@ extern crate clams_bin;
 extern crate colored;
 #[macro_use]
 extern crate failure;
-#[macro_use]
-extern crate failure_derive;
 extern crate fern;
 extern crate indicatif;
 #[macro_use]
 extern crate log;
 #[macro_use]
 extern crate structopt;
-extern crate subprocess;
+extern crate walkdir;
 
-use clams::{fs, logging};
+use clams::logging;
 use clams_bin::mv_files;
 use colored::Colorize;
-use failure::{Error, ResultExt};
+use failure::Error;
 use indicatif::{ProgressBar, ProgressStyle};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use structopt::StructOpt;
-use subprocess::{Exec, Redirection};
+use walkdir::WalkDir;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "mv_files",
-about = "Move video files from a nested directory structure into another, flat directory",
-raw(setting = "structopt::clap::AppSettings::ColoredHelp")
+    about = "Move video files from a nested directory structure into another, flat directory",
+    raw(setting = "structopt::clap::AppSettings::ColoredHelp")
 )]
 struct Args {
     /// File extensions to consider
@@ -59,75 +57,61 @@ fn run(args: Args) -> Result<(), Error> {
         colored::control::set_override(false);
     }
     if args.dry {
-        println!("{}", "Running in dry mode. No moves will be performed.".blue());
+        println!( "{}", "Running in dry mode. No moves will be performed.".blue());
     }
 
-    let _ = mv_files::check_size_arg(&args.size)?;
+    let size = mv_files::human_size_to_bytes(&args.size)?;
     if !PathBuf::from(&args.destination).is_dir() {
-        return Err(format_err!("Destination directory '{}' does not exist.", args.destination));
+        return Err(format_err!( "Destination directory '{}' does not exist.", args.destination));
     }
-    let source_directories: Vec<_> = args.sources
+    let extensions = mv_files::parse_extensions(&args.extensions)?;
+
+    let source_directories: Vec<&str> = args.sources
         .iter()
         .map(|s| s.as_ref())
         .collect();
-    let extensions = mv_files::parse_extensions(&args.extensions)?;
 
-    let find = mv_files::build_find_cmd(&source_directories, &args.size, extensions.as_slice())?;
-    debug!("find = {}", find);
-
-    let res = Exec::shell(&find)
-        .stdout(Redirection::Pipe)
-        .stderr(Redirection::Merge)
-        .capture().context(format!("Failed to spawn shell command: '{}'", find))?;
-    if !res.exit_status.success() {
-        return Err(format_err!("Shell command failed: '{}', because:\n{}", find, res.stdout_str()));
-    }
-    let files: Vec<_> = res.stdout_str()
-        .lines()
-        .map(|f| PathBuf::from(f))
-        .collect();
-    debug!("found files = {:#?}", files);
-
-    let (files, non_existing): (Vec<_>, Vec<_>) = files
+    let dir_entries: Vec<_> = source_directories
         .into_iter()
-        .partition(|f| fs::file_exists(&f) );
-    debug!("non existing files = {:#?}", non_existing);
+        .map(|d| WalkDir::new(d).into_iter())
+        .flat_map(|e| e)
+        .collect::<Result<Vec<_>, _>>()?;
 
-    if !non_existing.is_empty() {
-        return Err(format_err!("Could not find files returned from find command {:#?}", non_existing));
-    }
-
-    let moves: Vec<(_,_)> = files
-        .into_iter()
-        .map(|f| {
-            let dest_path = mv_files::destination_path(&args.destination, &f).unwrap();
-            (f, dest_path)
+    let moves: Vec<(_, _)> = dir_entries
+        .iter()
+        .map(|e| e.path())
+        .filter(|p| !p.is_dir())
+        .filter(|p| p.extension()
+                .map_or(false, |x| extensions.contains(&x.to_str().unwrap())))
+        .filter(|p| p.metadata()
+                .map(|m| m.len() >= size).unwrap_or(false))
+        .map(|p| {
+            let dest_path = mv_files::destination_path(&args.destination, p).unwrap();
+            (p, dest_path)
         })
         .collect();
 
     if args.progress_bar {
         move_files_with_progress_bar(moves.as_slice(), args.dry)
     } else {
-        move_files(&moves, args.dry)
+        move_files(moves.as_slice(), args.dry)
     }
-
 }
 
-fn move_files_with_progress_bar(moves: &[(PathBuf, PathBuf)], dry: bool) -> Result<(), Error> {
+fn move_files_with_progress_bar(moves: &[(&Path, PathBuf)], dry: bool) -> Result<(), Error> {
     let pb = ProgressBar::new(moves.len() as u64);
     let style = ProgressStyle::default_bar()
         .template("[{elapsed_precise}] {bar:20.cyan/blue} ({pos}/{len}) {wide_msg}");
     pb.set_style(style);
 
-    for &(ref from, ref to) in moves {
+    for &(from, ref to) in moves {
         // Safe unwrap because we already checked the paths.
-        pb.set_message(
-            &format!("Moving {} to {} ...", from.to_str().unwrap().yellow(), to.to_str().unwrap().yellow())
-        );
+        pb.set_message(&format!( "Moving {} to {} ...", from.to_str().unwrap().yellow(), to.to_str().unwrap().yellow()
+        ));
         if !dry {
             match std::fs::rename(from, to) {
-                Ok(_) => {},
-                Err(e) => eprintln!("Failed to move {} because {}", from.to_str().unwrap().red(), e)
+                Ok(_) => {}
+                Err(e) => eprintln!( "Failed to move {} because {}", from.to_str().unwrap().red(), e),
             }
         }
         pb.inc(1);
@@ -137,16 +121,16 @@ fn move_files_with_progress_bar(moves: &[(PathBuf, PathBuf)], dry: bool) -> Resu
     Ok(())
 }
 
-fn move_files(moves: &[(PathBuf, PathBuf)], dry: bool) -> Result<(), Error> {
-    for &(ref from, ref to) in moves {
+fn move_files(moves: &[(&Path, PathBuf)], dry: bool) -> Result<(), Error> {
+    for &(from, ref to) in moves {
         // Safe unwrap because we already checked the paths.
-        print!("Moving {} to {} ...", from.to_str().unwrap().yellow(), to.to_str().unwrap().yellow());
+        print!( "Moving {} to {} ...", from.to_str().unwrap().yellow(), to.to_str().unwrap().yellow());
         if dry {
             println!(" {}", "simulated.".blue());
         } else {
             match std::fs::rename(from, to) {
                 Ok(_) => println!(" {}.", "done".green()),
-                Err(e) => eprintln!("Failed to move {} because {}", from.to_str().unwrap().red(), e)
+                Err(e) => eprintln!( "Failed to move {} because {}", from.to_str().unwrap().red(), e),
             }
         }
     }
@@ -158,9 +142,10 @@ fn main() {
     let args = Args::from_args();
 
     let log_level = logging::int_to_log_level(args.verbosity);
-    logging::init_logging("mv_files", log_level, log::LevelFilter::Warn).expect("Failed to initialize logging");
+    logging::init_logging("mv_files", log_level, log::LevelFilter::Warn)
+        .expect("Failed to initialize logging");
 
-    println!("mv_files {}, log level={}", env!("CARGO_PKG_VERSION"), log_level);
+    println!( "mv_files {}, log level={}", env!("CARGO_PKG_VERSION"), log_level);
     debug!("args = {:#?}", args);
 
     match run(args) {

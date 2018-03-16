@@ -2,8 +2,6 @@ extern crate failure;
 #[macro_use]
 extern crate failure_derive;
 extern crate fern;
-#[macro_use]
-extern crate error_chain;
 extern crate log;
 
 #[cfg(test)]
@@ -13,7 +11,7 @@ pub mod mv_files {
     use std::path::{Path, PathBuf};
 
     #[derive(Debug, Fail)]
-    pub enum MvVideosError {
+    pub enum MvFilesError {
         #[fail(display = "Source directories missing")]
         EmptySources,
         #[fail(display = "Extensions missing")]
@@ -26,45 +24,47 @@ pub mod mv_files {
         InvalidFileName { arg: String },
     }
 
-    pub fn build_find_cmd(source_dirs: &[&str], min_size: &str, extensions: &[&str]) -> Result<String, MvVideosError> {
-        if source_dirs.is_empty() { return Err(MvVideosError::EmptySources); };
-        if extensions.is_empty() { return Err(MvVideosError::EmptyExtensions); };
-
-        let srcs = source_dirs
-            .iter()
-            .map(|s| format!("\"{}\"", s))
-            .collect::<Vec<_>>()
-            .join(" ");
-        let exts = extensions
-            .iter()
-            .map(|s| format!("-name \"*.{}\"", s))
-            .collect::<Vec<_>>()
-            .join(" -or ");
-
-        Ok(format!("find {} -type f -size +{} -and \\( {} \\)", srcs, min_size, exts))
-    }
-
-    pub fn check_size_arg(size: &str) -> Result<(), MvVideosError> {
-        if size.is_empty() { return Err(MvVideosError::InvaildSize { arg: String::from(size) }); };
+    pub fn human_size_to_bytes(size: &str) -> Result<u64, MvFilesError> {
+        if size.is_empty() {
+            return Err(MvFilesError::InvaildSize {
+                arg: String::from(size),
+            });
+        };
 
         let scales: &[_] = &['k', 'M', 'G', 'T', 'P'];
-        let last = size.chars().last().unwrap(); // safe because is_empty check
-        let size = if scales.contains(&last) {
+        let scale = size.chars().last().unwrap(); // safe because is_empty check
+        let size = if scales.contains(&scale) {
             size.trim_right_matches(scales)
         } else {
             size
         };
 
-        if let Ok(_) = size.parse::<usize>() {
-            return Ok(());
-        }
+        let size = size.parse::<u64>().map_err(|_| MvFilesError::InvaildSize {
+            arg: String::from(size),
+        })?;
 
-        Err(MvVideosError::InvaildSize { arg: String::from(size) })
+        let size = match scale {
+            'k' => size * 1024u64.pow(1),
+            'M' => size * 1024u64.pow(2),
+            'G' => size * 1024u64.pow(3),
+            'T' => size * 1024u64.pow(4),
+            'P' => size * 1024u64.pow(5),
+            _ => size,
+        };
+
+        Ok(size)
     }
 
-    pub fn destination_path<T: AsRef<Path>, S: AsRef<Path>>(destination_dir: T, file_path: S) -> Result<PathBuf, MvVideosError> {
-        let file = file_path.as_ref().file_name()
-            .ok_or_else(|| MvVideosError::InvalidFileName { arg: format!("{:?}", file_path.as_ref()) })?;
+    pub fn destination_path<T: AsRef<Path>, S: AsRef<Path>>(
+        destination_dir: T,
+        file_path: S,
+    ) -> Result<PathBuf, MvFilesError> {
+        let file = file_path
+            .as_ref()
+            .file_name()
+            .ok_or_else(|| MvFilesError::InvalidFileName {
+                arg: format!("{:?}", file_path.as_ref()),
+            })?;
 
         let mut path = PathBuf::new();
         path.push(destination_dir.as_ref());
@@ -73,12 +73,14 @@ pub mod mv_files {
         Ok(path)
     }
 
-    pub fn parse_extensions(ext: &str) -> Result<Vec<&str>, MvVideosError> {
-        if ext.is_empty() { return Err(MvVideosError::InvalidExtensionsList { arg: String::from(ext) }); };
+    pub fn parse_extensions(ext: &str) -> Result<Vec<&str>, MvFilesError> {
+        if ext.is_empty() {
+            return Err(MvFilesError::InvalidExtensionsList {
+                arg: String::from(ext),
+            });
+        };
 
-        let res: Vec<_> = ext
-            .trim_right_matches(',')
-            .split(',').collect();
+        let res: Vec<_> = ext.trim_right_matches(',').split(',').collect();
 
         Ok(res)
     }
@@ -88,61 +90,67 @@ pub mod mv_files {
         pub use super::*;
         pub use spectral::prelude::*;
 
-        mod build_find {
-            use super::*;
-
-            #[test]
-            fn empty_extensions() {
-                let res = build_find_cmd(&["one", "two"], "100M", &[]);
-                assert_that(&res).is_err();
-            }
-
-            #[test]
-            fn empty_source_directories() {
-                let res = build_find_cmd(&[], "100M", &["avi", "mkv", "mp4"]);
-                assert_that(&res).is_err();
-            }
-
-            #[test]
-            fn find() {
-                let res = build_find_cmd(&["one", "two"], "100M", &["avi", "mkv", "mp4"]);
-                assert_that(&res)
-                    .is_ok()
-                    .is_equal_to(r#"find "one" "two" -type f -size +100M -and \( -name "*.avi" -or -name "*.mkv" -or -name "*.mp4" \)"#.to_string());
-            }
-        }
-
-        mod check_size_arg {
+        mod human_size_to_bytes {
             use super::*;
 
             #[test]
             fn empty() {
-                let res = check_size_arg("");
+                let res = human_size_to_bytes("");
                 assert_that(&res).is_err();
             }
 
             #[test]
             fn nan() {
-                let res = check_size_arg("a10");
+                let res = human_size_to_bytes("a10");
                 assert_that(&res).is_err();
             }
 
             #[test]
             fn bytes() {
-                let res = check_size_arg("100");
-                assert_that(&res).is_ok();
+                assert_that(&human_size_to_bytes("100"))
+                    .is_ok()
+                    .is_equal_to(100)
+            }
+
+            #[test]
+            fn kilo_bytes() {
+                assert_that(&human_size_to_bytes("100k"))
+                    .is_ok()
+                    .is_equal_to(100 * 1024)
+            }
+
+            #[test]
+            fn mega_bytes() {
+                assert_that(&human_size_to_bytes("100M"))
+                    .is_ok()
+                    .is_equal_to(100 * 1024 * 1024)
+            }
+
+            #[test]
+            fn giga_bytes() {
+                assert_that(&human_size_to_bytes("100G"))
+                    .is_ok()
+                    .is_equal_to(100 * 1024 * 1024 * 1024)
+            }
+
+            #[test]
+            fn tera_bytes() {
+                assert_that(&human_size_to_bytes("100T"))
+                    .is_ok()
+                    .is_equal_to(100 * 1024 * 1024 * 1024 * 1024)
+            }
+
+            #[test]
+            fn peta_bytes() {
+                assert_that(&human_size_to_bytes("100P"))
+                    .is_ok()
+                    .is_equal_to(100 * 1024 * 1024 * 1024 * 1024 * 1024)
             }
 
             #[test]
             fn unknown_scale() {
-                let res = check_size_arg("100L");
+                let res = human_size_to_bytes("100L");
                 assert_that(&res).is_err();
-            }
-
-            #[test]
-            fn scale_k() {
-                let res = check_size_arg("100k");
-                assert_that(&res).is_ok();
             }
         }
 
