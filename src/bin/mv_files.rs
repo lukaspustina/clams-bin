@@ -124,7 +124,7 @@ fn move_files_with_progress_bar(moves: &[(PathBuf, PathBuf)], dry: bool) -> Resu
         pb.set_message(
             &format!("Moving {} to {} ...", from.to_str().unwrap().yellow(), to.to_str().unwrap().yellow())
         );
-        if dry {
+        if !dry {
             match std::fs::rename(from, to) {
                 Ok(_) => {},
                 Err(e) => eprintln!("Failed to move {} because {}", from.to_str().unwrap().red(), e)
