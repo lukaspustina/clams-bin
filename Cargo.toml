@@ -1,6 +1,6 @@
 [package]
 name = "clams-bin"
-version = "0.0.2"
+version = "0.0.3"
 authors = ["Lukas Pustina <lukas@pustina.net>"]
 description = "Shell CLIs build with help from clams"
 readme = "README.md"
