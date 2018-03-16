@@ -6,6 +6,7 @@ extern crate failure;
 #[macro_use]
 extern crate failure_derive;
 extern crate fern;
+extern crate indicatif;
 #[macro_use]
 extern crate log;
 #[macro_use]
@@ -16,6 +17,7 @@ use clams::{fs, logging};
 use clams_bin::mv_videos;
 use colored::Colorize;
 use failure::{Error, ResultExt};
+use indicatif::{ProgressBar, ProgressStyle};
 use std::path::PathBuf;
 use structopt::StructOpt;
 use subprocess::{Exec, Redirection};
@@ -44,6 +46,9 @@ struct Args {
     /// do not use colored output
     #[structopt(long = "no-color")]
     no_color: bool,
+    /// Show progressbar
+    #[structopt(short = "p", long = "progress-bar")]
+    progress_bar: bool,
     /// Verbose mode (-v, -vv, -vvv, etc.)
     #[structopt(short = "v", long = "verbose", parse(from_occurrences))]
     verbosity: u64,
@@ -93,22 +98,55 @@ fn run(args: Args) -> Result<(), Error> {
     }
 
     let moves: Vec<(_,_)> = files
-        .iter()
+        .into_iter()
         .map(|f| {
-            let dest_path = mv_videos::destination_path(&args.destination, f).unwrap();
+            let dest_path = mv_videos::destination_path(&args.destination, &f).unwrap();
             (f, dest_path)
         })
         .collect();
 
-    for (from, to) in moves {
+    if args.progress_bar {
+        move_files_with_progress_bar(moves.as_slice(), args.dry)
+    } else {
+        move_files(&moves, args.dry)
+    }
+
+}
+
+fn move_files_with_progress_bar(moves: &[(PathBuf, PathBuf)], dry: bool) -> Result<(), Error> {
+    let pb = ProgressBar::new(moves.len() as u64);
+    let style = ProgressStyle::default_bar()
+        .template("[{elapsed_precise}] {bar:20.cyan/blue} ({pos}/{len}) {wide_msg}");
+    pb.set_style(style);
+
+    for &(ref from, ref to) in moves {
+        // Safe unwrap because we already checked the paths.
+        pb.set_message(
+            &format!("Moving {} to {} ...", from.to_str().unwrap().yellow(), to.to_str().unwrap().yellow())
+        );
+        if dry {
+            match std::fs::rename(from, to) {
+                Ok(_) => {},
+                Err(e) => eprintln!("Failed to move {} because {}", from.to_str().unwrap().red(), e)
+            }
+        }
+        pb.inc(1);
+    }
+    pb.finish_with_message("done.");
+
+    Ok(())
+}
+
+fn move_files(moves: &[(PathBuf, PathBuf)], dry: bool) -> Result<(), Error> {
+    for &(ref from, ref to) in moves {
         // Safe unwrap because we already checked the paths.
         print!("Moving {} to {} ...", from.to_str().unwrap().yellow(), to.to_str().unwrap().yellow());
-        if args.dry {
-            println!(" {}.", "simulated".blue());
+        if dry {
+            println!(" {}", "simulated.".blue());
         } else {
             match std::fs::rename(from, to) {
                 Ok(_) => println!(" {}.", "done".green()),
-                Err(e) => eprintln!(" {}", e)
+                Err(e) => eprintln!("Failed to move {} because {}", from.to_str().unwrap().red(), e)
             }
         }
     }
