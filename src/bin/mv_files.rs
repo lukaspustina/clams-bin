@@ -91,6 +91,8 @@ fn run(args: Args) -> Result<(), Error> {
         })
         .collect();
 
+    debug!("moving with progess bar = {} and dry mode = {} and moves = ({}) {:#?}", args.progress_bar, args.dry, moves.len(), moves);
+
     if args.progress_bar {
         move_files_with_progress_bar(moves.as_slice(), args.dry)
     } else {
