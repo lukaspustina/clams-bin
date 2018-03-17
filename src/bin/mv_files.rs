@@ -103,7 +103,7 @@ fn run(args: Args) -> Result<(), Error> {
 fn move_files_with_progress_bar(moves: &[(&Path, PathBuf)], dry: bool) -> Result<(), Error> {
     let pb = ProgressBar::new(moves.len() as u64);
     let style = ProgressStyle::default_bar()
-        .template("[{elapsed_precise}] {bar:20.cyan/blue} ({pos}/{len}) {wide_msg}");
+        .template("[{elapsed_precise}] [{bar:20.blue/blue}] {pos}/{len} ({eta}) {wide_msg} {spinner:.blue}");
     pb.set_style(style);
 
     for &(from, ref to) in moves {
