@@ -6,7 +6,7 @@ use_case_tests: mv_files
 
 mv_files: mv_files.expected
 	@echo "+ $@"
-	@cd ..; cargo run -q --bin mv_files -- --no-color tests/data /tmp --size 0 -d | grep -v '^$@' | sort > $(TMP_FILE)
+	@cd ..; cargo run -q --bin mv_files -- --no-color tests/data /tmp --size 0 -d 2> /dev/null | grep -v '^$@' | sort > $(TMP_FILE)
 	@diff $< $(TMP_FILE)
 	@echo "+ $@ okay"
 

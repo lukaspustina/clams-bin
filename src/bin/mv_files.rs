@@ -11,11 +11,13 @@ extern crate log;
 extern crate structopt;
 extern crate walkdir;
 
-use clams::logging;
+use clams::logging::{Level, ModLevel, init_logging};
+use clams::progress::ProgressStyleExt;
 use clams_bin::mv_files;
 use colored::Colorize;
 use failure::Error;
 use indicatif::{ProgressBar, ProgressStyle};
+use std::io;
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 use walkdir::WalkDir;
@@ -53,11 +55,8 @@ struct Args {
 }
 
 fn run(args: Args) -> Result<(), Error> {
-    if args.no_color {
-        colored::control::set_override(false);
-    }
     if args.dry {
-        println!( "{}", "Running in dry mode. No moves will be performed.".blue());
+        warn!( "{}", "Running in dry mode. No moves will be performed.".yellow());
     }
 
     let size = mv_files::human_size_to_bytes(&args.size)?;
@@ -102,8 +101,7 @@ fn run(args: Args) -> Result<(), Error> {
 
 fn move_files_with_progress_bar(moves: &[(&Path, PathBuf)], dry: bool) -> Result<(), Error> {
     let pb = ProgressBar::new(moves.len() as u64);
-    let style = ProgressStyle::default_bar()
-        .template("[{elapsed_precise}] [{bar:20.blue/blue}] {pos}/{len} ({eta}) {wide_msg} {spinner:.blue}");
+    let style = ProgressStyle::default_clams_bar();
     pb.set_style(style);
 
     for &(from, ref to) in moves {
@@ -142,12 +140,20 @@ fn move_files(moves: &[(&Path, PathBuf)], dry: bool) -> Result<(), Error> {
 
 fn main() {
     let args = Args::from_args();
+    if args.no_color {
+        colored::control::set_override(false);
+    }
 
-    let log_level = logging::int_to_log_level(args.verbosity);
-    logging::init_logging("mv_files", log_level, log::LevelFilter::Warn)
+    let name = Args::clap().get_name().to_owned();
+    let my_log_level: Level = args.verbosity.into();
+
+    let default = Level(log::LevelFilter::Warn);
+    let md = ModLevel { module: name.clone(), level: my_log_level.clone() };
+    init_logging(io::stderr(), !args.no_color, default, vec![md])
         .expect("Failed to initialize logging");
 
-    println!( "mv_files {}, log level={}", env!("CARGO_PKG_VERSION"), log_level);
+    let Level(log_level) = my_log_level;
+    eprintln!( "{} version={}, log level={}", name, env!("CARGO_PKG_VERSION"), log_level);
     debug!("args = {:#?}", args);
 
     match run(args) {

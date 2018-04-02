@@ -22,7 +22,7 @@ name = "mv_files"
 path = "src/bin/mv_files.rs"
 
 [dependencies]
-clams = "0.0.2"
+clams = "^0.0.8"
 colored = "^1.6"
 failure = "^0.1"
 failure_derive = "^0.1"
