@@ -59,9 +59,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "clams"
-version = "0.0.7"
+version = "0.0.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "clams-derive 0.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clams-derive 0.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "colored 1.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "error-chain 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "fern 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -76,12 +77,9 @@ dependencies = [
 name = "clams-bin"
 version = "0.0.6"
 dependencies = [
- "clams 0.0.7",
- "colored 1.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clams 0.0.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "failure 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "failure_derive 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "fern 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "indicatif 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "spectral 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "structopt 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -90,7 +88,7 @@ dependencies = [
 
 [[package]]
 name = "clams-derive"
-version = "0.0.3"
+version = "0.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "quote 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -693,7 +691,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum bitflags 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "b3c30d3802dfb7281680d6285f2ccdaa8c2d8fee41f93805dba5c4cf50dc23cf"
 "checksum cc 1.0.4 (registry+https://github.com/rust-lang/crates.io-index)" = "deaf9ec656256bb25b404c51ef50097207b9cbb29c933d31f92cae5a8a0ffee0"
 "checksum cfg-if 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "d4c819a1287eb618df47cc647173c5c4c66ba19d888a6e50d605672aed3140de"
-"checksum clams-derive 0.0.3 (registry+https://github.com/rust-lang/crates.io-index)" = "eb12d9c83b94432799a7fb0c25325676bd0c4accb9aa976e6f2a4fcf1ea054e6"
+"checksum clams 0.0.8 (registry+https://github.com/rust-lang/crates.io-index)" = "4171861e8ab7f4f213106d86e1d3c0a49bfffac8ad470f292d9fdfeab42f2eba"
+"checksum clams-derive 0.0.4 (registry+https://github.com/rust-lang/crates.io-index)" = "cdbfd0da18899993ee223b82a74804256637e40baa439aaa8dbac1ce039729de"
 "checksum clap 2.30.0 (registry+https://github.com/rust-lang/crates.io-index)" = "1c07b9257a00f3fc93b7f3c417fc15607ec7a56823bc2c37ec744e266387de5b"
 "checksum clicolors-control 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "1f84dec9bc083ce2503908cd305af98bd363da6f54bf8d4bf0ac14ee749ad5d1"
 "checksum colored 1.6.0 (registry+https://github.com/rust-lang/crates.io-index)" = "b0aa3473e85a3161b59845d6096b289bb577874cafeaf75ea1b1beaa6572c7fc"

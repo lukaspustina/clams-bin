@@ -1,8 +1,6 @@
 extern crate failure;
 #[macro_use]
 extern crate failure_derive;
-extern crate fern;
-extern crate log;
 
 #[cfg(test)]
 extern crate spectral;

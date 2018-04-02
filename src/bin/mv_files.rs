@@ -1,22 +1,16 @@
 extern crate clams;
 extern crate clams_bin;
-extern crate colored;
 #[macro_use]
 extern crate failure;
-extern crate fern;
-extern crate indicatif;
 #[macro_use]
 extern crate log;
 #[macro_use]
 extern crate structopt;
 extern crate walkdir;
 
-use clams::logging::{Level, ModLevel, init_logging};
-use clams::progress::ProgressStyleExt;
+use clams::prelude::*;
 use clams_bin::mv_files;
-use colored::Colorize;
 use failure::Error;
-use indicatif::{ProgressBar, ProgressStyle};
 use std::io;
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
@@ -140,9 +134,7 @@ fn move_files(moves: &[(&Path, PathBuf)], dry: bool) -> Result<(), Error> {
 
 fn main() {
     let args = Args::from_args();
-    if args.no_color {
-        colored::control::set_override(false);
-    }
+    clams::console::set_color(!args.no_color);
 
     let name = Args::clap().get_name().to_owned();
     let my_log_level: Level = args.verbosity.into();

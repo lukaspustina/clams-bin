@@ -23,12 +23,9 @@ path = "src/bin/mv_files.rs"
 
 [dependencies]
 clams = "^0.0.8"
-colored = "^1.6"
 failure = "^0.1"
 failure_derive = "^0.1"
-indicatif = "^0.9"
 log = "^0.4"
-fern = { version = "^0.5", features = ["colored"] }
 structopt = "^0.2"
 walkdir = "2"
 
