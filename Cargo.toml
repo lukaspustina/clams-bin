@@ -21,6 +21,10 @@ codecov = { repository = "lukaspustina/clams-bin", branch = "master", service = 
 name = "mv_files"
 path = "src/bin/mv_files.rs"
 
+[[bin]]
+name = "pelican_frontmatter"
+path = "src/bin/pelican_frontmatter.rs"
+
 [dependencies]
 clams = "^0.0.8"
 failure = "^0.1"
