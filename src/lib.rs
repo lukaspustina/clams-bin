@@ -1,9 +1,165 @@
+extern crate chrono;
+extern crate clams;
+#[macro_use]
+extern crate clams_derive;
 extern crate failure;
 #[macro_use]
 extern crate failure_derive;
+extern crate handlebars;
+extern crate serde;
+#[macro_use]
+extern crate serde_derive;
+extern crate toml;
 
 #[cfg(test)]
 extern crate spectral;
+
+pub mod new_note {
+    use chrono::prelude::*;
+    use clams::config::prelude::*;
+    use handlebars::Handlebars;
+    use std::env;
+    use std::fs::{self, File};
+    use std::io::prelude::*;
+    use std::process::Command;
+
+    #[derive(Debug, Fail)]
+    pub enum NnError {
+        #[fail(display = "Could to parse publication date because {}", arg)]
+        FailedToParsePublicationDate{ arg: String },
+        #[fail(display = "Could to create new note because {}", arg)]
+        FailedToCreateNewNote{ arg: String },
+        #[fail(display = "Could not exec editor because {}", arg)]
+        FailedToExecEditor{ arg: String },
+        #[fail(display = "Could not render frontmatter template because {}", arg)]
+        FailedToRenderFrontmatterTemplate{ arg: String },
+        #[fail(display = "Could not write note file because {}", arg)]
+        FailedToWriteNoteFile{ arg: String },
+    }
+
+    #[derive(Config, Debug, Serialize, Deserialize)]
+    pub struct NewNoteConfig {
+        pub notes_directory: String,
+        pub notes_template: String,
+    }
+
+    pub fn title_to_file_name(title: &str) -> String {
+        let mut res = title.to_lowercase().replace(" ", "-");
+        res.push_str(".md");
+        res
+    }
+
+    pub fn str_date_to_date(date: &str) -> Result<DateTime<Local>, NnError> {
+        match date {
+            "now" => Ok(Local::now()),
+            _ => Local.datetime_from_str(date, "%Y-%m-%d %H:%M")
+                    .map_err(|e| NnError::FailedToParsePublicationDate{ arg: e.to_string() }),
+        }
+    }
+
+    pub fn date_to_iso_day(dt: &DateTime<Local> ) -> String {
+        dt.format("%Y-%m-%d").to_string()
+    }
+
+    pub fn date_to_iso_time(dt: &DateTime<Local> ) -> String {
+        dt.format("%Y-%m-%d %H:%M").to_string()
+    }
+
+    #[derive(Debug, Serialize)]
+    pub struct FrontMatter {
+        pub title: String,
+        pub date: String,
+    }
+
+    pub fn create_note(path: &Path, template: &str, frontmatter: &FrontMatter) -> Result<(), NnError> {
+        let content = render_template(template, frontmatter)?;
+        let _ = write_content_to_file(&content, &path)?;
+
+        Ok(())
+    }
+
+    pub fn render_template(template: &str, frontmatter: &FrontMatter) -> Result<String, NnError> {
+        let mut handlebars = Handlebars::new();
+        handlebars.register_template_string("frontmatter", template)
+            .map_err(|e| NnError::FailedToRenderFrontmatterTemplate{ arg: e.to_string() })?;
+        let text = handlebars.render("frontmatter", frontmatter)
+            .map_err(|e| NnError::FailedToRenderFrontmatterTemplate{ arg: e.to_string() })?;
+
+        Ok(text)
+    }
+
+    pub fn write_content_to_file(content: &str, path: &Path) -> Result<(), NnError> {
+        // Make sure, the destnation dir exists.
+        let dir = path.parent().ok_or_else(|| NnError::FailedToWriteNoteFile{ arg: "path does not contain directory".to_string() })?;
+        if !dir.exists() {
+            fs::create_dir(dir)
+                .map_err(|e| NnError::FailedToWriteNoteFile{ arg: e.to_string() })?;
+        }
+        let mut file = File::create(path)
+            .map_err(|e| NnError::FailedToWriteNoteFile{ arg: e.to_string() })?;
+        file.write_all(content.as_bytes())
+            .map_err(|e| NnError::FailedToWriteNoteFile{ arg: e.to_string() })?;
+
+        Ok(())
+    }
+
+    pub fn open_editor(file: &Path) -> Result<(), NnError>{
+        let editor = env::var_os("EDITOR").unwrap_or_else(|| "vi".to_string().into());
+
+        let _ = Command::new(editor)
+            .arg(file.as_os_str())
+            .spawn()
+            .map_err(|e| NnError::FailedToExecEditor { arg: e.to_string() })?;
+
+        Ok(())
+    }
+
+    #[cfg(test)]
+    mod test {
+        pub use super::*;
+        pub use spectral::prelude::*;
+
+        #[test]
+        fn title_to_file_name_okay() {
+            let title = "This is just a Punk Rock song";
+            let expected = "this-is-just-a-punk-rock-song.md".to_owned();
+
+            let res = title_to_file_name(title);
+
+            assert_that(&res).is_equal_to(expected);
+        }
+
+        #[test]
+        fn str_date_to_date_okay() {
+            let str_date = "2001-01-01 01:01";
+            let expected = Local.ymd(2001, 01, 01).and_hms(01, 01, 00);
+
+            let res = str_date_to_date(str_date);
+
+            assert_that(&res).is_ok().is_equal_to(expected);
+        }
+
+        #[test]
+        fn date_to_iso_day_okay() {
+            let date = Local.ymd(2001, 01, 01).and_hms(01, 01, 00);
+            let expected = "2001-01-01".to_owned();
+
+            let res = date_to_iso_day(&date);
+
+            assert_that(&res).is_equal_to(expected);
+        }
+
+        #[test]
+        fn date_to_iso_time_okay() {
+            let date = Local.ymd(2001, 01, 01).and_hms(01, 01, 00);
+            let expected = "2001-01-01 01:01".to_owned();
+
+            let res = date_to_iso_time(&date);
+
+            assert_that(&res).is_equal_to(expected);
+        }
+    }
+}
 
 pub mod pelican_frontmatter {
     use std::collections::HashMap;
