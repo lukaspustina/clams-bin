@@ -38,19 +38,12 @@ struct Args {
     /// do not use colored output
     #[structopt(long = "no-color")]
     no_color: bool,
-    /// Only show what would be done
-    #[structopt(long = "dry")]
-    dry: bool,
     /// Verbose mode (-v, -vv, -vvv, etc.)
     #[structopt(short = "v", long = "verbose", parse(from_occurrences))]
     verbosity: u64,
 }
 
 fn run(args: Args) -> Result<(), Error> {
-    if args.dry {
-        warn!("{}", "Running in dry mode. No file will be created.".yellow());
-    }
-
     let mut config_locations = default_locations(DEFAULT_CONFIG_FILE_NAME);
     if let Some(config) = args.config_file {
         config_locations.insert(0, config.into());

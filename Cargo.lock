@@ -85,7 +85,7 @@ dependencies = [
 
 [[package]]
 name = "clams-bin"
-version = "0.0.8"
+version = "0.0.9"
 dependencies = [
  "chrono 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "clams 0.0.8 (registry+https://github.com/rust-lang/crates.io-index)",
