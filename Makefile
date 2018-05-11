@@ -25,6 +25,13 @@ release: release-bump all docs
 release-bump:
 	cargo bump
 
+
+install:
+	cargo install --force
+
+uninstall:
+	cargo uninstall
+
 clippy:
 	rustup run nightly cargo clippy
 
