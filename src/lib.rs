@@ -44,7 +44,9 @@ pub mod new_note {
     }
 
     pub fn title_to_file_name(title: &str) -> String {
-        let mut res = title.to_lowercase().replace(" ", "-");
+        let mut res = title.to_lowercase()
+            .replace(" ", "-")
+            .replace("'", "-");
         res.push_str(".md");
         res
     }
