@@ -31,7 +31,7 @@ path = "src/bin/new_note.rs"
 
 [dependencies]
 chrono = "^0.4"
-clams = "^0.0.8"
+clams = "^0.0.9"
 clams-derive = "^0.0.4"
 failure = "^0.1"
 failure_derive = "^0.1"
