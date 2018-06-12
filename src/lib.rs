@@ -46,7 +46,8 @@ pub mod new_note {
     pub fn title_to_file_name(title: &str) -> String {
         let mut res = title.to_lowercase()
             .replace(" ", "-")
-            .replace("'", "-");
+            .replace("'", "-")
+            .replace(",", "-");
         res.push_str(".md");
         res
     }
@@ -123,8 +124,8 @@ pub mod new_note {
 
         #[test]
         fn title_to_file_name_okay() {
-            let title = "This is just a Punk Rock song";
-            let expected = "this-is-just-a-punk-rock-song.md".to_owned();
+            let title = "This is just a 'Punk, Rock' song";
+            let expected = "this-is-just-a--punk--rock--song.md".to_owned();
 
             let res = title_to_file_name(title);
 
