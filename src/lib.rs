@@ -1,23 +1,22 @@
-extern crate chrono;
-extern crate clams;
-#[macro_use]
-extern crate clams_derive;
-extern crate failure;
-#[macro_use]
-extern crate failure_derive;
-extern crate handlebars;
-extern crate serde;
-#[macro_use]
-extern crate serde_derive;
-extern crate toml;
+pub mod netatmo {
+    use clams::config::prelude::*;
+    use serde::{Deserialize, Serialize};
 
-#[cfg(test)]
-extern crate spectral;
+    #[derive(Config, Debug, Serialize, Deserialize)]
+    pub struct NetatmoConfig {
+        pub client_id: String,
+        pub client_secret: String,
+        pub username: String,
+        pub password: String,
+    }
+}
 
 pub mod new_note {
     use chrono::prelude::*;
     use clams::config::prelude::*;
+    use failure::Fail;
     use handlebars::Handlebars;
+    use serde::{Deserialize, Serialize};
     use std::env;
     use std::fs::{self, File};
     use std::io::prelude::*;
@@ -26,15 +25,15 @@ pub mod new_note {
     #[derive(Debug, Fail)]
     pub enum NnError {
         #[fail(display = "Could to parse publication date because {}", arg)]
-        FailedToParsePublicationDate{ arg: String },
+        FailedToParsePublicationDate { arg: String },
         #[fail(display = "Could to create new note because {}", arg)]
-        FailedToCreateNewNote{ arg: String },
+        FailedToCreateNewNote { arg: String },
         #[fail(display = "Could not exec editor because {}", arg)]
-        FailedToExecEditor{ arg: String },
+        FailedToExecEditor { arg: String },
         #[fail(display = "Could not render frontmatter template because {}", arg)]
-        FailedToRenderFrontmatterTemplate{ arg: String },
+        FailedToRenderFrontmatterTemplate { arg: String },
         #[fail(display = "Could not write note file because {}", arg)]
-        FailedToWriteNoteFile{ arg: String },
+        FailedToWriteNoteFile { arg: String },
     }
 
     #[derive(Config, Debug, Serialize, Deserialize)]
@@ -44,7 +43,8 @@ pub mod new_note {
     }
 
     pub fn title_to_file_name(title: &str) -> String {
-        let mut res = title.to_lowercase()
+        let mut res = title
+            .to_lowercase()
             .replace(" ", "-")
             .replace("'", "-")
             .replace(",", "-");
@@ -55,16 +55,17 @@ pub mod new_note {
     pub fn str_date_to_date(date: &str) -> Result<DateTime<Local>, NnError> {
         match date {
             "now" => Ok(Local::now()),
-            _ => Local.datetime_from_str(date, "%Y-%m-%d %H:%M")
-                    .map_err(|e| NnError::FailedToParsePublicationDate{ arg: e.to_string() }),
+            _ => Local
+                .datetime_from_str(date, "%Y-%m-%d %H:%M")
+                .map_err(|e| NnError::FailedToParsePublicationDate { arg: e.to_string() }),
         }
     }
 
-    pub fn date_to_iso_day(dt: &DateTime<Local> ) -> String {
+    pub fn date_to_iso_day(dt: &DateTime<Local>) -> String {
         dt.format("%Y-%m-%d").to_string()
     }
 
-    pub fn date_to_iso_time(dt: &DateTime<Local> ) -> String {
+    pub fn date_to_iso_time(dt: &DateTime<Local>) -> String {
         dt.format("%Y-%m-%d %H:%M").to_string()
     }
 
@@ -74,7 +75,11 @@ pub mod new_note {
         pub date: String,
     }
 
-    pub fn create_note(path: &Path, template: &str, frontmatter: &FrontMatter) -> Result<(), NnError> {
+    pub fn create_note(
+        path: &Path,
+        template: &str,
+        frontmatter: &FrontMatter,
+    ) -> Result<(), NnError> {
         let content = render_template(template, frontmatter)?;
         let _ = write_content_to_file(&content, &path)?;
 
@@ -83,30 +88,36 @@ pub mod new_note {
 
     pub fn render_template(template: &str, frontmatter: &FrontMatter) -> Result<String, NnError> {
         let mut handlebars = Handlebars::new();
-        handlebars.register_template_string("frontmatter", template)
-            .map_err(|e| NnError::FailedToRenderFrontmatterTemplate{ arg: e.to_string() })?;
-        let text = handlebars.render("frontmatter", frontmatter)
-            .map_err(|e| NnError::FailedToRenderFrontmatterTemplate{ arg: e.to_string() })?;
+        handlebars
+            .register_template_string("frontmatter", template)
+            .map_err(|e| NnError::FailedToRenderFrontmatterTemplate { arg: e.to_string() })?;
+        let text = handlebars
+            .render("frontmatter", frontmatter)
+            .map_err(|e| NnError::FailedToRenderFrontmatterTemplate { arg: e.to_string() })?;
 
         Ok(text)
     }
 
     pub fn write_content_to_file(content: &str, path: &Path) -> Result<(), NnError> {
         // Make sure, the destnation dir exists.
-        let dir = path.parent().ok_or_else(|| NnError::FailedToWriteNoteFile{ arg: "path does not contain directory".to_string() })?;
+        let dir = path
+            .parent()
+            .ok_or_else(|| NnError::FailedToWriteNoteFile {
+                arg: "path does not contain directory".to_string(),
+            })?;
         if !dir.exists() {
             fs::create_dir(dir)
-                .map_err(|e| NnError::FailedToWriteNoteFile{ arg: e.to_string() })?;
+                .map_err(|e| NnError::FailedToWriteNoteFile { arg: e.to_string() })?;
         }
         let mut file = File::create(path)
-            .map_err(|e| NnError::FailedToWriteNoteFile{ arg: e.to_string() })?;
+            .map_err(|e| NnError::FailedToWriteNoteFile { arg: e.to_string() })?;
         file.write_all(content.as_bytes())
-            .map_err(|e| NnError::FailedToWriteNoteFile{ arg: e.to_string() })?;
+            .map_err(|e| NnError::FailedToWriteNoteFile { arg: e.to_string() })?;
 
         Ok(())
     }
 
-    pub fn open_editor(file: &Path) -> Result<(), NnError>{
+    pub fn open_editor(file: &Path) -> Result<(), NnError> {
         let editor = env::var_os("EDITOR").unwrap_or_else(|| "vi".to_string().into());
 
         let _ = Command::new(editor)
@@ -165,6 +176,7 @@ pub mod new_note {
 }
 
 pub mod pelican_frontmatter {
+    use failure::Fail;
     use std::collections::HashMap;
     use std::fs::File;
     use std::io::{BufReader, Read, Write};
@@ -173,13 +185,13 @@ pub mod pelican_frontmatter {
     #[derive(Debug, Fail)]
     pub enum ApfError {
         #[fail(display = "Could not open source file because {}", arg)]
-        FailedToOpenSourceFile{ arg: String },
+        FailedToOpenSourceFile { arg: String },
         #[fail(display = "Could not open destination file because {}", arg)]
-        FailedToOpenDestinationFile{ arg: String },
+        FailedToOpenDestinationFile { arg: String },
         #[fail(display = "Failed to read because {}", arg)]
-        FailedToRead{ arg: String },
+        FailedToRead { arg: String },
         #[fail(display = "Failed to write because {}", arg)]
-        FailedToWrite{ arg: String },
+        FailedToWrite { arg: String },
     }
 
     mod pelican {
@@ -188,7 +200,7 @@ pub mod pelican_frontmatter {
 
         #[derive(Debug, PartialEq)]
         pub struct FrontMatter {
-            pub fields: HashMap<String, String>
+            pub fields: HashMap<String, String>,
         }
 
         pub fn parse_front_matter<T: AsRef<str>>(src: &[T]) -> Result<FrontMatter, ApfError> {
@@ -199,13 +211,17 @@ pub mod pelican_frontmatter {
                 let splits: Vec<_> = line.splitn(2, ":").collect();
                 // We split once at max, so len==2 is _ to satisfy compiler for exhaustive matching.
                 match splits.len() {
-                    0 => {},
-                    1 => { fields.insert(splits[0].to_owned(), "".to_owned()); },
-                    _ => { fields.insert(splits[0].to_owned(), splits[1].trim().to_owned()); },
+                    0 => {}
+                    1 => {
+                        fields.insert(splits[0].to_owned(), "".to_owned());
+                    }
+                    _ => {
+                        fields.insert(splits[0].to_owned(), splits[1].trim().to_owned());
+                    }
                 }
             }
 
-            Ok(FrontMatter{ fields })
+            Ok(FrontMatter { fields })
         }
 
         #[cfg(test)]
@@ -216,7 +232,9 @@ pub mod pelican_frontmatter {
             #[test]
             fn parse_front_matter_empty() {
                 let front_matter = String::from("");
-                let expected = FrontMatter{ fields: HashMap::new() };
+                let expected = FrontMatter {
+                    fields: HashMap::new(),
+                };
 
                 let front_matter: Vec<_> = front_matter.lines().collect();
                 let res = parse_front_matter(front_matter.as_slice());
@@ -229,15 +247,19 @@ pub mod pelican_frontmatter {
             #[test]
             fn parse_front_matter_ok() {
                 let front_matter = String::from(
-r#"Title: With Proper TDD, You Get That
+                    r#"Title: With Proper TDD, You Get That
 Date: 2012-07-27 12:00
 Author: lukas
 Category: Allgemein, Test Driving
 Tags: TDD, Testing
 Slug: with-proper-tdd-you-get-that
-Status: published"#);
+Status: published"#,
+                );
                 let mut fields = HashMap::new();
-                fields.insert("Title".to_owned(), "With Proper TDD, You Get That".to_owned());
+                fields.insert(
+                    "Title".to_owned(),
+                    "With Proper TDD, You Get That".to_owned(),
+                );
                 fields.insert("Date".to_owned(), "2012-07-27 12:00".to_owned());
                 fields.insert("Author".to_owned(), "lukas".to_owned());
                 fields.insert("Category".to_owned(), "Allgemein, Test Driving".to_owned());
@@ -245,7 +267,7 @@ Status: published"#);
                 fields.insert("Slug".to_owned(), "with-proper-tdd-you-get-that".to_owned());
                 fields.insert("Status".to_owned(), "published".to_owned());
 
-                let expected = FrontMatter{ fields };
+                let expected = FrontMatter { fields };
 
                 let front_matter: Vec<_> = front_matter.lines().collect();
                 let res = parse_front_matter(front_matter.as_slice());
@@ -265,7 +287,7 @@ Status: published"#);
 
     #[derive(Debug, PartialEq)]
     pub struct FrontMatter {
-        pub fields: HashMap<String, FrontMatterType>
+        pub fields: HashMap<String, FrontMatterType>,
     }
 
     impl From<pelican::FrontMatter> for FrontMatter {
@@ -274,17 +296,20 @@ Status: published"#);
 
             for (k, v) in pelican.fields {
                 match k.to_lowercase().as_ref() {
-                    "tags" => fields.insert("tags".to_owned(),
-                        FrontMatterType::List(v.split(',').map(|s| s.trim().to_owned()).collect())),
-                    "category" => fields.insert("categories".to_owned(),
-                        FrontMatterType::List(v.split(',').map(|s| s.trim().to_owned()).collect())),
+                    "tags" => fields.insert(
+                        "tags".to_owned(),
+                        FrontMatterType::List(v.split(',').map(|s| s.trim().to_owned()).collect()),
+                    ),
+                    "category" => fields.insert(
+                        "categories".to_owned(),
+                        FrontMatterType::List(v.split(',').map(|s| s.trim().to_owned()).collect()),
+                    ),
                     "slug" => None, // Remove this frontmatter field
-                    key@_ => fields.insert(key.to_owned(),
-                        FrontMatterType::Value(v.to_owned())),
+                    key @ _ => fields.insert(key.to_owned(), FrontMatterType::Value(v.to_owned())),
                 };
             }
 
-            FrontMatter{ fields }
+            FrontMatter { fields }
         }
     }
 
@@ -297,12 +322,17 @@ Status: published"#);
             let mut keys: Vec<_> = self.fields.keys().collect();
             keys.sort();
             for k in keys {
-                let line = match *self.fields.get(k).unwrap() { // Safe unwrap
+                let line = match *self.fields.get(k).unwrap() {
+                    // Safe unwrap
                     FrontMatterType::Value(ref s) => format!("{}: \"{}\"\n", k, s),
-                    FrontMatterType::List(ref l)  => {
-                        let list: String = l.iter().map(|s| format!("- \"{}\"", s)).collect::<Vec<_>>().join("\n");
+                    FrontMatterType::List(ref l) => {
+                        let list: String = l
+                            .iter()
+                            .map(|s| format!("- \"{}\"", s))
+                            .collect::<Vec<_>>()
+                            .join("\n");
                         format!("{}:\n{}\n", k, list)
-                    },
+                    }
                 };
                 buf.push_str(&line);
             }
@@ -311,11 +341,13 @@ Status: published"#);
 
             buf
         }
-    } 
+    }
 
     pub fn adapt_pelican_frontmatter_in_file(src: &Path, dest: &Path) -> Result<(), ApfError> {
-        let read = File::open(src).map_err(|e| ApfError::FailedToOpenSourceFile{ arg: e.to_string() })?;
-        let mut write = File::create(dest).map_err(|e| ApfError::FailedToOpenDestinationFile{ arg: e.to_string() })?;
+        let read =
+            File::open(src).map_err(|e| ApfError::FailedToOpenSourceFile { arg: e.to_string() })?;
+        let mut write = File::create(dest)
+            .map_err(|e| ApfError::FailedToOpenDestinationFile { arg: e.to_string() })?;
 
         adapt_pelican_frontmatter(read, &mut write)
     }
@@ -328,14 +360,18 @@ Status: published"#);
     fn adapt_pelican_frontmatter<R: Read, W: Write>(src: R, dest: &mut W) -> Result<(), ApfError> {
         let mut buf = String::new();
         let mut reader = BufReader::new(src);
-        reader.read_to_string(&mut buf).map_err(|e| ApfError::FailedToRead{ arg: e.to_string() })?;
+        reader
+            .read_to_string(&mut buf)
+            .map_err(|e| ApfError::FailedToRead { arg: e.to_string() })?;
         let mut lines = buf.split('\n');
 
         let mut frontmatter_buf = Vec::new();
         loop {
             match lines.next() {
                 Some(line) if line.is_empty() => break,
-                Some(line) => { frontmatter_buf.push(line); },
+                Some(line) => {
+                    frontmatter_buf.push(line);
+                }
                 None => break,
             }
         }
@@ -344,14 +380,16 @@ Status: published"#);
         let frontmatter: FrontMatter = pelican_frontmatter.into();
 
         dest.write(frontmatter.write().as_bytes())
-            .map_err(|e| ApfError::FailedToWrite{ arg: e.to_string() })?;
+            .map_err(|e| ApfError::FailedToWrite { arg: e.to_string() })?;
 
         loop {
             match lines.next() {
-                Some(line) => { 
-                    dest.write(b"\n").map_err(|e| ApfError::FailedToWrite{ arg: e.to_string() })?;
-                    dest.write(line.as_bytes()).map_err(|e| ApfError::FailedToWrite{ arg: e.to_string() })?;
-                },
+                Some(line) => {
+                    dest.write(b"\n")
+                        .map_err(|e| ApfError::FailedToWrite { arg: e.to_string() })?;
+                    dest.write(line.as_bytes())
+                        .map_err(|e| ApfError::FailedToWrite { arg: e.to_string() })?;
+                }
                 None => break,
             }
         }
@@ -372,23 +410,48 @@ Status: published"#);
             #[test]
             fn from_pelican_frontmatter() {
                 let mut pelican_fields = HashMap::new();
-                pelican_fields.insert("Title".to_owned(), "With Proper TDD, You Get That".to_owned());
+                pelican_fields.insert(
+                    "Title".to_owned(),
+                    "With Proper TDD, You Get That".to_owned(),
+                );
                 pelican_fields.insert("Date".to_owned(), "2012-07-27 12:00".to_owned());
                 pelican_fields.insert("Author".to_owned(), "lukas".to_owned());
                 pelican_fields.insert("Category".to_owned(), "Allgemein, Test Driving".to_owned());
                 pelican_fields.insert("Tags".to_owned(), "TDD, Testing".to_owned());
                 pelican_fields.insert("Slug".to_owned(), "with-proper-tdd-you-get-that".to_owned());
                 pelican_fields.insert("Status".to_owned(), "published".to_owned());
-                let pelican = pelican::FrontMatter{ fields: pelican_fields };
+                let pelican = pelican::FrontMatter {
+                    fields: pelican_fields,
+                };
 
                 let mut expected_fields = HashMap::new();
-                expected_fields.insert("title".to_owned(), FrontMatterType::Value("With Proper TDD, You Get That".to_owned()));
-                expected_fields.insert("date".to_owned(), FrontMatterType::Value("2012-07-27 12:00".to_owned()));
-                expected_fields.insert("author".to_owned(), FrontMatterType::Value("lukas".to_owned()));
-                expected_fields.insert("categories".to_owned(), FrontMatterType::List(vec!["Allgemein".to_owned(), "Test Driving".to_owned()]));
-                expected_fields.insert("tags".to_owned(), FrontMatterType::List(vec!["TDD".to_owned(), "Testing".to_owned()]));
-                expected_fields.insert("status".to_owned(), FrontMatterType::Value("published".to_owned()));
-                let expected = FrontMatter{ fields: expected_fields };
+                expected_fields.insert(
+                    "title".to_owned(),
+                    FrontMatterType::Value("With Proper TDD, You Get That".to_owned()),
+                );
+                expected_fields.insert(
+                    "date".to_owned(),
+                    FrontMatterType::Value("2012-07-27 12:00".to_owned()),
+                );
+                expected_fields.insert(
+                    "author".to_owned(),
+                    FrontMatterType::Value("lukas".to_owned()),
+                );
+                expected_fields.insert(
+                    "categories".to_owned(),
+                    FrontMatterType::List(vec!["Allgemein".to_owned(), "Test Driving".to_owned()]),
+                );
+                expected_fields.insert(
+                    "tags".to_owned(),
+                    FrontMatterType::List(vec!["TDD".to_owned(), "Testing".to_owned()]),
+                );
+                expected_fields.insert(
+                    "status".to_owned(),
+                    FrontMatterType::Value("published".to_owned()),
+                );
+                let expected = FrontMatter {
+                    fields: expected_fields,
+                };
 
                 let frontmatter: FrontMatter = pelican.into();
 
@@ -398,17 +461,38 @@ Status: published"#);
             #[test]
             fn write_frontmatter() {
                 let mut fields = HashMap::new();
-                fields.insert("title".to_owned(), FrontMatterType::Value("With Proper TDD, You Get That".to_owned()));
-                fields.insert("date".to_owned(), FrontMatterType::Value("2012-07-27 12:00".to_owned()));
-                fields.insert("author".to_owned(), FrontMatterType::Value("lukas".to_owned()));
-                fields.insert("categories".to_owned(), FrontMatterType::List(vec!["Allgemein".to_owned(), "Test Driving".to_owned()]));
-                fields.insert("tags".to_owned(), FrontMatterType::List(vec!["TDD".to_owned(), "Testing".to_owned()]));
-                fields.insert("slug".to_owned(), FrontMatterType::Value("with-proper-tdd-you-get-that".to_owned()));
-                fields.insert("status".to_owned(), FrontMatterType::Value("published".to_owned()));
-                let frontmatter = FrontMatter{ fields };
+                fields.insert(
+                    "title".to_owned(),
+                    FrontMatterType::Value("With Proper TDD, You Get That".to_owned()),
+                );
+                fields.insert(
+                    "date".to_owned(),
+                    FrontMatterType::Value("2012-07-27 12:00".to_owned()),
+                );
+                fields.insert(
+                    "author".to_owned(),
+                    FrontMatterType::Value("lukas".to_owned()),
+                );
+                fields.insert(
+                    "categories".to_owned(),
+                    FrontMatterType::List(vec!["Allgemein".to_owned(), "Test Driving".to_owned()]),
+                );
+                fields.insert(
+                    "tags".to_owned(),
+                    FrontMatterType::List(vec!["TDD".to_owned(), "Testing".to_owned()]),
+                );
+                fields.insert(
+                    "slug".to_owned(),
+                    FrontMatterType::Value("with-proper-tdd-you-get-that".to_owned()),
+                );
+                fields.insert(
+                    "status".to_owned(),
+                    FrontMatterType::Value("published".to_owned()),
+                );
+                let frontmatter = FrontMatter { fields };
 
                 let expected = String::from(
-r#"---
+                    r#"---
 author: "lukas"
 categories:
 - "Allgemein"
@@ -421,7 +505,8 @@ tags:
 - "Testing"
 title: "With Proper TDD, You Get That"
 ---
-"#           );
+"#,
+                );
 
                 let res = frontmatter.write();
 
@@ -472,11 +557,7 @@ End.
             fn run_with_strings(src: &String, expected: &String) -> () {
                 let mut buffer = String::new();
                 let res = {
-                    let mut writer = BufWriter::new(
-                        unsafe {
-                            buffer.as_mut_vec()
-                        }
-                    );
+                    let mut writer = BufWriter::new(unsafe { buffer.as_mut_vec() });
 
                     adapt_pelican_frontmatter(src.as_bytes(), &mut writer)
                 };
@@ -490,6 +571,7 @@ End.
 }
 
 pub mod mv_files {
+    use failure::Fail;
     use std::path::{Path, PathBuf};
 
     #[derive(Debug, Fail)]
@@ -516,7 +598,7 @@ pub mod mv_files {
         let scales: &[_] = &['k', 'M', 'G', 'T', 'P'];
         let scale = size.chars().last().unwrap(); // safe because is_empty check
         let size = if scales.contains(&scale) {
-            size.trim_right_matches(scales)
+            size.trim_end_matches(scales)
         } else {
             size
         };
@@ -562,7 +644,7 @@ pub mod mv_files {
             });
         };
 
-        let res: Vec<_> = ext.trim_right_matches(',').split(',').collect();
+        let res: Vec<_> = ext.trim_end_matches(',').split(',').collect();
 
         Ok(res)
     }

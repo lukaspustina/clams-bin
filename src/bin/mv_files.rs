@@ -1,23 +1,13 @@
-extern crate clams;
-extern crate clams_bin;
-#[macro_use]
-extern crate failure;
-#[macro_use]
-extern crate log;
-#[macro_use]
-extern crate structopt;
-extern crate walkdir;
-
 use clams::prelude::*;
 use clams_bin::mv_files;
-use failure::Error;
-use std::io;
+use failure::{format_err, Error};
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 use walkdir::WalkDir;
 
 #[derive(StructOpt, Debug)]
-#[structopt(name = "mv_files",
+#[structopt(
+    name = "mv_files",
     about = "Move video files from a nested directory structure into another, flat directory",
     raw(setting = "structopt::clap::AppSettings::ColoredHelp")
 )]
@@ -43,6 +33,9 @@ struct Args {
     /// Show progressbar
     #[structopt(short = "p", long = "progress-bar")]
     progress_bar: bool,
+    /// Silencium
+    #[structopt(short = "s", long = "silent")]
+    silent: bool,
     /// Verbose mode (-v, -vv, -vvv, etc.)
     #[structopt(short = "v", long = "verbose", parse(from_occurrences))]
     verbosity: u64,
@@ -50,19 +43,22 @@ struct Args {
 
 fn run(args: Args) -> Result<(), Error> {
     if args.dry {
-        warn!( "{}", "Running in dry mode. No moves will be performed.".yellow());
+        warn!(
+            "{}",
+            "Running in dry mode. No moves will be performed.".yellow()
+        );
     }
 
     let size = mv_files::human_size_to_bytes(&args.size)?;
     if !PathBuf::from(&args.destination).is_dir() {
-        return Err(format_err!( "Destination directory '{}' does not exist.", args.destination));
+        return Err(format_err!(
+            "Destination directory '{}' does not exist.",
+            args.destination
+        ));
     }
     let extensions = mv_files::parse_extensions(&args.extensions)?;
 
-    let source_directories: Vec<&str> = args.sources
-        .iter()
-        .map(|s| s.as_ref())
-        .collect();
+    let source_directories: Vec<&str> = args.sources.iter().map(|s| s.as_ref()).collect();
 
     let dir_entries: Vec<_> = source_directories
         .into_iter()
@@ -74,17 +70,24 @@ fn run(args: Args) -> Result<(), Error> {
         .iter()
         .map(|e| e.path())
         .filter(|p| !p.is_dir())
-        .filter(|p| p.extension()
-                .map_or(false, |x| extensions.contains(&x.to_str().unwrap())))
-        .filter(|p| p.metadata()
-                .map(|m| m.len() >= size).unwrap_or(false))
+        .filter(|p| {
+            p.extension()
+                .map_or(false, |x| extensions.contains(&x.to_str().unwrap()))
+        })
+        .filter(|p| p.metadata().map(|m| m.len() >= size).unwrap_or(false))
         .map(|p| {
             let dest_path = mv_files::destination_path(&args.destination, p).unwrap();
             (p, dest_path)
         })
         .collect();
 
-    debug!("moving with progess bar = {} and dry mode = {} and moves = ({}) {:#?}", args.progress_bar, args.dry, moves.len(), moves);
+    debug!(
+        "moving with progess bar = {} and dry mode = {} and moves = ({}) {:#?}",
+        args.progress_bar,
+        args.dry,
+        moves.len(),
+        moves
+    );
 
     if args.progress_bar {
         move_files_with_progress_bar(moves.as_slice(), args.dry)
@@ -100,12 +103,19 @@ fn move_files_with_progress_bar(moves: &[(&Path, PathBuf)], dry: bool) -> Result
 
     for &(from, ref to) in moves {
         // Safe unwrap because we already checked the paths.
-        pb.set_message(&format!( "Moving {} to {} ...", from.to_str().unwrap().yellow(), to.to_str().unwrap().yellow()
+        pb.set_message(&format!(
+            "Moving {} to {} ...",
+            from.to_str().unwrap().yellow(),
+            to.to_str().unwrap().yellow()
         ));
         if !dry {
             match std::fs::rename(from, to) {
                 Ok(_) => {}
-                Err(e) => eprintln!( "Failed to move {} because {}", from.to_str().unwrap().red(), e),
+                Err(e) => eprintln!(
+                    "Failed to move {} because {}",
+                    from.to_str().unwrap().red(),
+                    e
+                ),
             }
         }
         pb.inc(1);
@@ -118,13 +128,21 @@ fn move_files_with_progress_bar(moves: &[(&Path, PathBuf)], dry: bool) -> Result
 fn move_files(moves: &[(&Path, PathBuf)], dry: bool) -> Result<(), Error> {
     for &(from, ref to) in moves {
         // Safe unwrap because we already checked the paths.
-        print!( "Moving {} to {} ...", from.to_str().unwrap().yellow(), to.to_str().unwrap().yellow());
+        print!(
+            "Moving {} to {} ...",
+            from.to_str().unwrap().yellow(),
+            to.to_str().unwrap().yellow()
+        );
         if dry {
             println!(" {}", "simulated.".blue());
         } else {
             match std::fs::rename(from, to) {
                 Ok(_) => println!(" {}.", "done".green()),
-                Err(e) => eprintln!( "Failed to move {} because {}", from.to_str().unwrap().red(), e),
+                Err(e) => eprintln!(
+                    "Failed to move {} because {}",
+                    from.to_str().unwrap().red(),
+                    e
+                ),
             }
         }
     }
@@ -137,22 +155,35 @@ fn main() {
     clams::console::set_color(!args.no_color);
 
     let name = Args::clap().get_name().to_owned();
-    let my_log_level: Level = args.verbosity.into();
 
-    let default = Level(log::LevelFilter::Warn);
-    let md = ModLevel { module: name.clone(), level: my_log_level.clone() };
-    init_logging(io::stderr(), !args.no_color, default, vec![md])
-        .expect("Failed to initialize logging");
+    let level: Level = args.verbosity.into();
+    if !args.silent {
+        eprintln!(
+            "{} version={}, log level={:?}",
+            name,
+            env!("CARGO_PKG_VERSION"),
+            &level
+        );
+    }
 
-    let Level(log_level) = my_log_level;
-    eprintln!( "{} version={}, log level={}", name, env!("CARGO_PKG_VERSION"), log_level);
-    debug!("args = {:#?}", args);
+    let log_config = LogConfig::new(
+        std::io::stderr(),
+        !args.no_color,
+        Level(log::LevelFilter::Error),
+        vec![ModLevel {
+            module: name.to_owned(),
+            level,
+        }],
+        None,
+    );
+
+    init_logging(log_config).expect("Failed to initialize logging");
 
     match run(args) {
         Ok(_) => {}
         Err(e) => {
             println!("Failed:");
-            for c in e.causes() {
+            for c in e.iter_chain() {
                 println!("{}", c);
             }
         }
