@@ -34,7 +34,7 @@ struct Args {
     #[structopt(short = "p", long = "progress-bar")]
     progress_bar: bool,
     /// Silencium
-    #[structopt(short = "s", long = "silent")]
+    #[structopt(long = "silent")]
     silent: bool,
     /// Verbose mode (-v, -vv, -vvv, etc.)
     #[structopt(short = "v", long = "verbose", parse(from_occurrences))]
