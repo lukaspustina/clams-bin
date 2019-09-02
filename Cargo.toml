@@ -27,7 +27,7 @@ handlebars = "1"
 log = "^0.4"
 serde = { version = "1", features = ["derive"] }
 netatmo-rs = "0.2"
-structopt = "^0.2"
+structopt = "^0.3"
 toml = "^0.5"
 walkdir = "2"
 
