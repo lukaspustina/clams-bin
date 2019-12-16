@@ -20,7 +20,7 @@ codecov = { repository = "lukaspustina/clams-bin", branch = "master", service = 
 
 [dependencies]
 chrono = "^0.4"
-clams = "^0.0.15"
+clams = "^0.0.16"
 failure = "^0.1"
 failure_derive = "^0.1"
 handlebars = "1"
